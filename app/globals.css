@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand — blue accent */
+  --lime-500: #2563eb;
+  --lime-600: #1d4ed8;
+  --lime-100: #dbeafe;
+
+  /* Surfaces */
+  --ink-900: #141414;
+  --ink-700: #2a2a2a;
+  --canvas: #f5f6f1;
+  --card: #ffffff;
+  --border: #ececec;
+  --muted: #8a8f98;
+
+  /* Status semantics */
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  /* Soft stat-tile badge tints */
+  --tint-blue: #e6f0ff;
+  --tint-orange: #ffeedd;
+  --tint-red: #ffe2e2;
+  --tint-green: #e3f8e8;
+  --tint-violet: #efeafe;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--ink-900);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numbers should feel loud, not the chrome */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom thin scrollbars for feed/panel areas */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #d8dad3;
+  border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Recharts: remove focus outlines on chart surfaces */
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+/* ── Professional polish ─────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--lime-500);
+  color: #ffffff;
+}
+
+/* Calm, consistent keyboard focus ring everywhere */
+:focus-visible {
+  outline: 2px solid rgba(20, 20, 20, 0.25);
+  outline-offset: 2px;
+}
+
+/* Headings: tighter optical tracking for a calmer, premium feel */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.01em;
+}
+
+/* Inputs/selects inherit the app font */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* Recharts text picks up the muted token + Inter */
+.recharts-text,
+.recharts-cartesian-axis-tick-value {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Native range inputs: consistent lime thumb across the app */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--ink-900);
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--ink-900);
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
