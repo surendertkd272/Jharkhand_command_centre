@@ -1,6 +1,7 @@
+"use client";
+
 import * as React from "react";
-import { cn } from "@/lib/utils";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
 const TONES = [
   "bg-tint-blue text-info",
@@ -12,11 +13,31 @@ const TONES = [
 
 function toneFor(name: string): string {
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % TONES.length;
+  for (let i = 0; i < name.length; i++)
+    h = (h + name.charCodeAt(i)) % TONES.length;
   return TONES[h];
 }
 
-/** Initials avatar. Deterministic pastel tint per name. */
+/** Must match the avatar generator's slug (scripts/gen-avatars). */
+function slug(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+const DIM = {
+  sm: "h-8 w-8 text-xs",
+  md: "h-10 w-10 text-sm",
+  lg: "h-12 w-12 text-base",
+  xl: "h-16 w-16 text-xl",
+};
+
+/**
+ * Athlete/person avatar. Renders a pre-generated portrait from
+ * /public/avatars/<slug>.svg (or an explicit `src`), and falls back to a
+ * tinted initials monogram if the image is missing or fails to load.
+ */
 export function Avatar({
   name,
   src,
@@ -28,35 +49,38 @@ export function Avatar({
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
-  const dim = {
-    sm: "h-8 w-8 text-xs",
-    md: "h-10 w-10 text-sm",
-    lg: "h-12 w-12 text-base",
-    xl: "h-16 w-16 text-xl",
-  }[size];
+  const [failed, setFailed] = React.useState(false);
+  const dim = DIM[size];
+  const resolved = src && src.length > 0 ? src : `/avatars/${slug(name)}.svg`;
 
-  if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
+  if (failed) {
     return (
-      <img
-        src={src}
-        alt={name}
-        className={cn("rounded-full object-cover", dim, className)}
-      />
+      <div
+        className={cn(
+          "grid shrink-0 place-items-center rounded-full font-semibold",
+          toneFor(name),
+          dim,
+          className,
+        )}
+        aria-label={name}
+      >
+        {initials(name)}
+      </div>
     );
   }
 
   return (
-    <div
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={resolved}
+      alt={name}
+      loading="lazy"
+      onError={() => setFailed(true)}
       className={cn(
-        "grid shrink-0 place-items-center rounded-full font-semibold",
-        toneFor(name),
+        "shrink-0 rounded-full bg-canvas object-cover ring-1 ring-line",
         dim,
         className,
       )}
-      aria-label={name}
-    >
-      {initials(name)}
-    </div>
+    />
   );
 }
