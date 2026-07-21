@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn, initials } from "@/lib/utils";
+import { AVATAR_PHOTOS } from "@/lib/avatarManifest";
 
 const TONES = [
   "bg-tint-blue text-info",
@@ -51,7 +52,16 @@ export function Avatar({
 }) {
   const [failed, setFailed] = React.useState(false);
   const dim = DIM[size];
-  const resolved = src && src.length > 0 ? src : `/avatars/${slug(name)}.svg`;
+  const s = slug(name);
+  // Prefer an explicit src, then a real photo (if the manifest lists one),
+  // then the generated illustrated SVG.
+  const photoExt = AVATAR_PHOTOS[s];
+  const resolved =
+    src && src.length > 0
+      ? src
+      : photoExt
+        ? `/avatars/${s}.${photoExt}`
+        : `/avatars/${s}.svg`;
 
   if (failed) {
     return (
