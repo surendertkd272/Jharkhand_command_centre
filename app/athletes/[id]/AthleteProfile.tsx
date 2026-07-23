@@ -15,16 +15,29 @@ import {
   Building2,
   UserRound,
   CalendarClock,
+  Zap,
+  RefreshCw,
+  type LucideIcon,
 } from "lucide-react";
 import type { Athlete, StatusKind } from "@/lib/types";
 import { Page } from "@/components/Page";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ComplianceGauge } from "@/components/ComplianceGauge";
 import { AreaTrend } from "@/components/charts/AreaTrend";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  ACWR_DANGER,
+  ACWR_HIGH,
+  ACWR_LOW,
+  type AthletePhysiology,
+  type MuscleGroupLoad,
+  type RiskLevel,
+  type Readiness,
+} from "@/lib/integrations/types";
 import {
   Table,
   TableHeader,
@@ -85,7 +98,13 @@ const IDENTITY_BADGE: Record<Athlete["identityStatus"], StatusKind> = {
   flagged: "flagged",
 };
 
-export function AthleteProfile({ athlete }: { athlete: Athlete }) {
+export function AthleteProfile({
+  athlete,
+  physiology,
+}: {
+  athlete: Athlete;
+  physiology: AthletePhysiology | null;
+}) {
   const academy = getAcademy(athlete.academyId);
   const st = statusKindFor(athlete.status);
   const attendanceData = athlete.attendance.map((p) => ({
@@ -272,6 +291,9 @@ export function AthleteProfile({ athlete }: { athlete: Athlete }) {
           </p>
         )}
       </SectionCard>
+
+      {/* ---- Load & recovery (Firstbeat + Myoact) ---- */}
+      {physiology && <LoadRecoverySection p={physiology} />}
 
       {/* ---- Trial score vs baseline ---- */}
       <SectionCard
@@ -485,6 +507,202 @@ function ScoreBar({
         </div>
       </div>
       <Progress value={value} tone={tone} />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+const RISK_BADGE: Record<RiskLevel, { status: StatusKind; label: string }> = {
+  low: { status: "resolved", label: "Low" },
+  moderate: { status: "flagged", label: "Moderate" },
+  high: { status: "breach", label: "High" },
+};
+
+const READINESS_BADGE: Record<Readiness, { status: StatusKind; label: string }> = {
+  optimal: { status: "active", label: "Optimal readiness" },
+  moderate: { status: "pending", label: "Moderate readiness" },
+  compromised: { status: "breach", label: "Compromised" },
+};
+
+function acwrTone(acwr: number): "ok" | "warn" | "danger" {
+  if (acwr > ACWR_DANGER) return "danger";
+  if (acwr > ACWR_HIGH || acwr < ACWR_LOW) return "warn";
+  return "ok";
+}
+
+function LoadRecoverySection({ p }: { p: AthletePhysiology }) {
+  const risk = RISK_BADGE[p.injuryRisk];
+  const ready = READINESS_BADGE[p.readiness];
+  return (
+    <>
+      <SectionCard
+        title="Load & recovery"
+        subtitle={`Fetched from Firstbeat + Myoact · synced ${timeAgo(p.lastSync)}`}
+        action={
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+            <RefreshCw className="h-3.5 w-3.5" />
+            <Badge tone="neutral">Firstbeat</Badge>
+            <Badge tone="neutral">Myoact</Badge>
+          </span>
+        }
+      >
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="flex items-center gap-5">
+            <ComplianceGauge value={p.recoveryScore} size={104} label="Recovery" />
+            <div className="space-y-2">
+              <StatusBadge
+                status={ready.status}
+                label={ready.label}
+                pulse={p.readiness === "compromised"}
+              />
+              <div>
+                <StatusBadge
+                  status={risk.status}
+                  label={`${risk.label} injury risk`}
+                  pulse={p.injuryRisk === "high"}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="ACWR" value={p.acwr.toFixed(2)} hint="0.8–1.3 optimal" tone={acwrTone(p.acwr)} icon={Zap} />
+            <Metric label="Weekly load" value={String(p.weeklyLoad)} hint="TRIMP · 7d" icon={Activity} />
+            <Metric label="HRV (rMSSD)" value={`${p.hrvRmssd} ms`} hint="recovery signal" icon={HeartPulse} />
+            <Metric label="Resting HR" value={`${p.restingHr}`} hint="bpm" icon={HeartPulse} />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-medium text-ink-900">Training load (TRIMP)</p>
+            <p className="mb-1 text-xs text-muted">Daily load · last 14 days</p>
+            <AreaTrend data={p.trainingLoad} dataKey="value" domain={[0, "auto"]} height={190} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-ink-900">Heart-rate variability</p>
+            <p className="mb-1 text-xs text-muted">rMSSD (ms) · last 14 days</p>
+            <AreaTrend data={p.hrvTrend} dataKey="value" unit=" ms" domain={[0, "auto"]} height={190} />
+          </div>
+        </div>
+
+        {p.flags.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {p.flags.map((f, i) => {
+              const severe =
+                /BLOCKED|spike|asymmetry 1[5-9]|Low recovery|suppressed/.test(f);
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
+                    severe ? "bg-tint-red text-danger" : "bg-tint-orange text-warn",
+                  )}
+                >
+                  <TriangleAlert className="h-3.5 w-3.5" />
+                  {f}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="Muscle load & symmetry"
+        subtitle="Myoact EMG · left/right activation by muscle group"
+        action={
+          <div className="text-right">
+            <div
+              className={cn(
+                "text-lg font-extrabold tabular",
+                p.asymmetryPct >= 15
+                  ? "text-danger"
+                  : p.asymmetryPct >= 10
+                    ? "text-warn"
+                    : "text-ok",
+              )}
+            >
+              {p.asymmetryPct}%
+            </div>
+            <div className="text-[11px] text-muted">L/R asymmetry</div>
+          </div>
+        }
+      >
+        <div className="space-y-3.5">
+          {p.muscleGroups.map((g) => (
+            <MuscleRow key={g.group} g={g} />
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-canvas px-4 py-2.5 text-xs text-muted">
+          <span>
+            Overall muscle load{" "}
+            <b className="text-ink-900">{p.muscleLoad}/100</b>
+          </span>
+          <span>·</span>
+          <span>
+            Fatigue index{" "}
+            <b className={cn(p.fatigueIndex >= 70 ? "text-danger" : "text-ink-900")}>
+              {p.fatigueIndex}/100
+            </b>
+          </span>
+        </div>
+      </SectionCard>
+    </>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+  tone,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "ok" | "warn" | "danger";
+  icon: LucideIcon;
+}) {
+  const color =
+    tone === "danger"
+      ? "text-danger"
+      : tone === "warn"
+        ? "text-warn"
+        : tone === "ok"
+          ? "text-ok"
+          : "text-ink-900";
+  return (
+    <div className="rounded-2xl border border-line bg-canvas/60 p-3">
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className={cn("mt-1 text-xl font-extrabold tabular", color)}>{value}</div>
+      {hint && <div className="text-[11px] text-muted">{hint}</div>}
+    </div>
+  );
+}
+
+function MuscleRow({ g }: { g: MuscleGroupLoad }) {
+  const flagged = Math.abs(g.left - g.right) >= 15;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-24 shrink-0 text-sm text-ink-700">{g.group}</span>
+      <div className="flex flex-1 items-center gap-2">
+        <span className="w-10 shrink-0 text-right text-[11px] tabular text-muted">
+          L {g.left}
+        </span>
+        <Progress value={g.left} tone="ink" className="flex-1" />
+        <Progress
+          value={g.right}
+          tone={flagged ? "danger" : "info"}
+          className="flex-1"
+        />
+        <span className="w-10 shrink-0 text-[11px] tabular text-muted">
+          R {g.right}
+        </span>
+      </div>
     </div>
   );
 }
