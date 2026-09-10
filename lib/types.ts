@@ -308,6 +308,59 @@ export interface InjuryLedgerRow {
 }
 
 // ----------------------------------------------------------------------------
+// Rewards & Engagement
+// ----------------------------------------------------------------------------
+export type BadgeKind =
+  | "consistency"
+  | "rising-talent"
+  | "perfect-attendance"
+  | "recovery-champion"
+  | "district-topper";
+
+export interface AcademyStreakRow {
+  id: string;
+  academyId: string;
+  academyName: string;
+  district: string;
+  type: "Academy" | "PEC";
+  /** Consecutive weeks of on-time submission. 0 = streak broken. */
+  streakWeeks: number;
+  /** Longest streak ever reached — what a broken streak cost them. */
+  bestStreakWeeks: number;
+  onTimeRate: number; // % of weekly submissions filed before cut-off
+  badgesEarned: number;
+  /** Engagement points — the currency behind grant priority. */
+  points: number;
+  status: StatusKind;
+}
+
+export interface AthleteBadgeRow {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  district: string;
+  academyName: string;
+  sport: Sport;
+  attendanceRate: number; // 0-100
+  points: number;
+  badges: BadgeKind[];
+}
+
+export interface DistrictStanding {
+  districtId: string;
+  district: string;
+  facilities: number;
+  points: number;
+  avgStreakWeeks: number;
+}
+
+/** Type alias (not an interface) so it satisfies AreaTrend's index signature. */
+export type EngagementPoint = {
+  label: string; // week label, W1..W8
+  onTime: number; // % of facilities filing before the weekly cut-off
+};
+
+// ----------------------------------------------------------------------------
 // Misc UI helpers
 // ----------------------------------------------------------------------------
 export interface SignoffItem {
