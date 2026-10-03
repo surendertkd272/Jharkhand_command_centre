@@ -32,6 +32,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ComplianceGauge } from "@/components/ComplianceGauge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Avatar } from "@/components/ui/avatar";
@@ -283,6 +284,8 @@ function ConditionalFundingTab() {
 function DBTTab() {
   const [scheme, setScheme] = React.useState("all");
   const [status, setStatus] = React.useState("all");
+  const [requeued, setRequeued] = React.useState<Set<string>>(new Set());
+  const toast = useToast();
 
   const schemeOptions = React.useMemo(() => {
     const set = Array.from(new Set(DBT_TRANSACTIONS.map((t) => t.scheme)));
@@ -428,8 +431,12 @@ function DBTTab() {
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <StatusBadge status={t.status} />
-                        {t.status === "failed" && t.failureReason && (
+                        {requeued.has(t.id) ? (
+                          <StatusBadge status="in-transit" label="Re-queued" />
+                        ) : (
+                          <StatusBadge status={t.status} />
+                        )}
+                        {t.status === "failed" && !requeued.has(t.id) && t.failureReason && (
                           <p className="text-xs text-danger">
                             {t.failureReason}
                           </p>
@@ -437,8 +444,20 @@ function DBTTab() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      {t.status === "failed" ? (
-                        <Button variant="outline" size="sm">
+                      {t.status === "failed" && requeued.has(t.id) ? (
+                        <span className="text-xs text-muted">Next batch</span>
+                      ) : t.status === "failed" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRequeued((prev) => new Set(prev).add(t.id));
+                            toast({
+                              title: "Transfer re-queued",
+                              description: `${formatRs(t.amount, { compact: false })} to ${t.athleteName} · goes out in the next DBT batch`,
+                            });
+                          }}
+                        >
                           <RotateCcw className="h-3.5 w-3.5" />
                           Retry
                         </Button>

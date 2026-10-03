@@ -293,6 +293,10 @@ export function alertsByPillar(p: Pillar): Alert[] {
 
 export const OPEN_ALERTS_COUNT = unresolvedAlerts().length;
 
+export const CRITICAL_OPEN_COUNT = unresolvedAlerts().filter(
+  (a) => a.severity === "critical",
+).length;
+
 export const ESCALATED_COUNT = ALERTS.filter(
   (a) => a.status === "escalated",
 ).length;

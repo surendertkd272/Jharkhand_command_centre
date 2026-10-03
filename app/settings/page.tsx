@@ -20,6 +20,7 @@ import { Page } from "@/components/Page";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -183,16 +184,27 @@ export default function SettingsPage() {
   const [compliance, setCompliance] = React.useState(DEFAULTS.compliance);
   const [sla, setSla] = React.useState(DEFAULTS.sla);
   const [funding, setFunding] = React.useState(DEFAULTS.funding);
+  const [saved, setSaved] = React.useState(DEFAULTS);
+  const toast = useToast();
 
   const dirty =
-    compliance !== DEFAULTS.compliance ||
-    sla !== DEFAULTS.sla ||
-    funding !== DEFAULTS.funding;
+    compliance !== saved.compliance ||
+    sla !== saved.sla ||
+    funding !== saved.funding;
 
+  // Reset reverts to the last saved values, not the factory defaults.
   const reset = () => {
-    setCompliance(DEFAULTS.compliance);
-    setSla(DEFAULTS.sla);
-    setFunding(DEFAULTS.funding);
+    setCompliance(saved.compliance);
+    setSla(saved.sla);
+    setFunding(saved.funding);
+  };
+
+  const save = () => {
+    setSaved({ compliance, sla, funding });
+    toast({
+      title: "Settings saved",
+      description: `Compliance ${compliance}% · SLA ${sla} h · funding pause at ${funding}% — applies from the next cycle`,
+    });
   };
 
   return (
@@ -210,7 +222,7 @@ export default function SettingsPage() {
             <RotateCcw className="h-4 w-4" />
             Reset
           </Button>
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={save} disabled={!dirty}>
             <Save className="h-4 w-4" />
             Save changes
           </Button>

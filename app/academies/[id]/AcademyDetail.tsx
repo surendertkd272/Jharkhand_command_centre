@@ -16,6 +16,7 @@ import { Page } from "@/components/Page";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertRow } from "@/components/AlertRow";
+import { AlertActions, useAlertTriage } from "@/components/AlertActions";
 import { ComplianceGauge } from "@/components/ComplianceGauge";
 import {
   Table,
@@ -95,7 +96,12 @@ export function AcademyDetail({ academy }: { academy: Academy }) {
     [roster],
   );
 
-  const academyAlerts = ALERTS.filter((al) => al.academyId === academy.id);
+  const sourceAlerts = React.useMemo(
+    () => ALERTS.filter((al) => al.academyId === academy.id),
+    [academy.id],
+  );
+  const triage = useAlertTriage(sourceAlerts);
+  const academyAlerts = triage.alerts;
   const kitRows = KIT_RECON.filter((k) => k.academyId === academy.id);
   const fundingRow = FUNDING_ROWS.find((f) => f.academyId === academy.id);
   const injuryRows = INJURY_LEDGER.filter((i) => rosterIds.has(i.athleteId));
@@ -279,16 +285,7 @@ export function AcademyDetail({ academy }: { academy: Academy }) {
                   key={al.id}
                   alert={al}
                   showPillar
-                  actions={
-                    <>
-                      <Button variant="outline" size="sm">
-                        Acknowledge
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        Assign
-                      </Button>
-                    </>
-                  }
+                  actions={<AlertActions alert={al} triage={triage} />}
                 />
               ))}
             </div>

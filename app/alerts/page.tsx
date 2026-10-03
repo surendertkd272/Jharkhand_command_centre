@@ -14,6 +14,11 @@ import {
 import { Page } from "@/components/Page";
 import { SectionCard } from "@/components/SectionCard";
 import { AlertRow } from "@/components/AlertRow";
+import {
+  AlertActions,
+  useAlertTriage,
+  type AlertTriage,
+} from "@/components/AlertActions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
@@ -26,11 +31,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { Alert, Pillar, Severity } from "@/lib/types";
-import {
-  ALERTS,
-  OPEN_ALERTS_COUNT,
-  ESCALATED_COUNT,
-} from "@/lib/mock/alerts";
+import { ALERTS } from "@/lib/mock/alerts";
 
 // ----------------------------------------------------------------------------
 // Filter vocabularies
@@ -62,6 +63,11 @@ const DISTRICT_OPTIONS = [
 type TabKey = "all" | "unresolved" | "escalated";
 
 export default function AlertsCenterPage() {
+  const triage = useAlertTriage(ALERTS);
+  const { alerts } = triage;
+  const openCount = alerts.filter((a) => a.status !== "resolved").length;
+  const escalatedCount = alerts.filter((a) => a.status === "escalated").length;
+
   const [pillars, setPillars] = React.useState<Set<Pillar>>(new Set());
   const [severities, setSeverities] = React.useState<Set<Severity>>(new Set());
   const [district, setDistrict] = React.useState("all");
@@ -96,14 +102,14 @@ export default function AlertsCenterPage() {
 
   // Apply the left-rail filters (independent of the tab dimension).
   const filtered = React.useMemo(() => {
-    return ALERTS.filter((a) => {
+    return alerts.filter((a) => {
       if (pillars.size && !pillars.has(a.pillar)) return false;
       if (severities.size && !severities.has(a.severity)) return false;
       if (district !== "all" && a.district !== district) return false;
       if (unresolvedOnly && a.status === "resolved") return false;
       return true;
     });
-  }, [pillars, severities, district, unresolvedOnly]);
+  }, [alerts, pillars, severities, district, unresolvedOnly]);
 
   // Tab partitions over the already-filtered set.
   const lists: Record<TabKey, Alert[]> = React.useMemo(
@@ -119,11 +125,11 @@ export default function AlertsCenterPage() {
     <Page
       title="Alerts Center"
       subtitle="Unified cross-pillar oversight feed"
-      notifications={OPEN_ALERTS_COUNT}
+      notifications={openCount}
       topbarRight={
         <div className="hidden items-center gap-2 sm:flex">
-          <Badge tone="danger">{OPEN_ALERTS_COUNT} unresolved</Badge>
-          <Badge tone="warn">{ESCALATED_COUNT} escalated</Badge>
+          <Badge tone="danger">{openCount} unresolved</Badge>
+          <Badge tone="warn">{escalatedCount} escalated</Badge>
         </div>
       }
     >
@@ -303,6 +309,7 @@ export default function AlertsCenterPage() {
                 title="All alerts"
                 subtitle="Every signal across the five oversight pillars"
                 alerts={lists.all}
+                triage={triage}
               />
             </TabsContent>
             <TabsContent value="unresolved">
@@ -310,6 +317,7 @@ export default function AlertsCenterPage() {
                 title="Unresolved alerts"
                 subtitle="Open, acknowledged and escalated — awaiting closure"
                 alerts={lists.unresolved}
+                triage={triage}
               />
             </TabsContent>
             <TabsContent value="escalated">
@@ -317,6 +325,7 @@ export default function AlertsCenterPage() {
                 title="Escalated alerts"
                 subtitle="Routed to a cell, officer or board for action"
                 alerts={lists.escalated}
+                triage={triage}
               />
             </TabsContent>
           </Tabs>
@@ -344,10 +353,12 @@ function AlertFeed({
   title,
   subtitle,
   alerts,
+  triage,
 }: {
   title: string;
   subtitle: string;
   alerts: Alert[];
+  triage: AlertTriage;
 }) {
   return (
     <SectionCard
@@ -379,40 +390,10 @@ function AlertFeed({
             key={a.id}
             alert={a}
             href={`/academies/${a.academyId}`}
-            actions={<RowActions resolved={a.status === "resolved"} />}
+            actions={<AlertActions alert={a} triage={triage} showResolve />}
           />
         ))
       )}
     </SectionCard>
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Cosmetic quick-action buttons. preventDefault stops the AlertRow link nav.
-// ----------------------------------------------------------------------------
-function RowActions({ resolved }: { resolved: boolean }) {
-  const swallow = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  if (resolved) {
-    return (
-      <Button variant="ghost" size="sm" onClick={swallow}>
-        View audit trail
-      </Button>
-    );
-  }
-  return (
-    <>
-      <Button variant="subtle" size="sm" onClick={swallow}>
-        Acknowledge
-      </Button>
-      <Button variant="outline" size="sm" onClick={swallow}>
-        Assign
-      </Button>
-      <Button variant="primary" size="sm" onClick={swallow}>
-        Resolve
-      </Button>
-    </>
   );
 }

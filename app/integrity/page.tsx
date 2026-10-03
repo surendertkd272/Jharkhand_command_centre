@@ -23,6 +23,7 @@ import {
   ScanFace,
   Fingerprint,
   ArrowRight,
+  Check,
 } from "lucide-react";
 
 import { Page } from "@/components/Page";
@@ -34,6 +35,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -373,6 +375,8 @@ function TrialDeBiasing() {
   }, []);
 
   const [sport, setSport] = React.useState("all");
+  const [queued, setQueued] = React.useState<Set<string>>(new Set());
+  const toast = useToast();
 
   const sportOptions = React.useMemo(
     () => [
@@ -577,9 +581,27 @@ function TrialDeBiasing() {
                 </span>
               </span>
             </div>
-            <Button variant="outline" size="sm" className="mt-3 w-full">
-              Review
-            </Button>
+            {queued.has(p.id) ? (
+              <Button variant="subtle" size="sm" className="mt-3 w-full" disabled>
+                <Check className="h-3.5 w-3.5" />
+                Queued for re-evaluation
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 w-full"
+                onClick={() => {
+                  setQueued((prev) => new Set(prev).add(p.id));
+                  toast({
+                    title: "Sent to independent panel",
+                    description: `${p.athleteName}'s trial score (+${p.deviation} over baseline) queued for blind re-evaluation`,
+                  });
+                }}
+              >
+                Review
+              </Button>
+            )}
           </div>
         ))}
         {flaggedList.length === 0 && (
@@ -597,6 +619,21 @@ function TrialDeBiasing() {
 // Dual-Registration tab
 // ----------------------------------------------------------------------------
 function DualRegistration() {
+  const toast = useToast();
+  const [frozenIds, setFrozenIds] = React.useState<Set<string>>(new Set());
+  const matches = DUAL_REGISTRATIONS.map((d) =>
+    frozenIds.has(d.id) ? { ...d, status: "frozen" as const } : d,
+  );
+
+  const freeze = (d: DualRegistrationMatch) => {
+    setFrozenIds((prev) => new Set(prev).add(d.id));
+    toast({
+      title: "Registrations frozen",
+      description: `${d.athleteName} — ${d.districtA} and ${d.districtB} entries locked pending state board ruling`,
+      tone: "danger",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -610,14 +647,14 @@ function DualRegistration() {
         />
         <StatCard
           label="Registrations frozen"
-          value={DUAL_REGISTRATIONS.filter((d) => d.status === "frozen").length}
+          value={matches.filter((d) => d.status === "frozen").length}
           icon={Lock}
           tint="orange"
           hint="Pending state board ruling"
         />
         <StatCard
           label="Cleared after review"
-          value={DUAL_REGISTRATIONS.filter((d) => d.status === "cleared").length}
+          value={matches.filter((d) => d.status === "cleared").length}
           icon={ShieldCheck}
           tint="green"
           hint="False-positive matches"
@@ -625,7 +662,7 @@ function DualRegistration() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-        {DUAL_REGISTRATIONS.map((d) => {
+        {matches.map((d) => {
           const hot = d.matchConfidence >= 95;
           const isFlagged = d.status === "flagged";
           return (
@@ -719,16 +756,43 @@ function DualRegistration() {
                 </div>
 
                 {isFlagged ? (
-                  <Button variant="danger" size="md" className="w-full">
+                  <Button
+                    variant="danger"
+                    size="md"
+                    className="w-full"
+                    onClick={() => freeze(d)}
+                  >
                     <Lock className="h-4 w-4" />
                     Freeze registrations
                   </Button>
                 ) : d.status === "frozen" ? (
-                  <Button variant="outline" size="md" className="w-full">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    className="w-full"
+                    onClick={() =>
+                      toast({
+                        title: "Case with State Board",
+                        description: `${d.athleteName} · ${d.matchConfidence}% ${d.biometric} match · both registrations frozen, ruling pending`,
+                        tone: "info",
+                      })
+                    }
+                  >
                     Review frozen case
                   </Button>
                 ) : (
-                  <Button variant="ghost" size="md" className="w-full">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    className="w-full"
+                    onClick={() =>
+                      toast({
+                        title: "Cleared after review",
+                        description: `${d.athleteName} · ${d.matchConfidence}% ${d.biometric} match ruled a false positive — both registrations active`,
+                        tone: "info",
+                      })
+                    }
+                  >
                     View cleared record
                   </Button>
                 )}

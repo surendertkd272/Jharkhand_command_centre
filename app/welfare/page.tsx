@@ -38,6 +38,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { Progress } from "@/components/ui/progress";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,17 @@ const TOTAL_EXIT_REASONS = EXIT_REASONS.reduce((s, r) => s + r.count, 0);
 // Exit Tracking tab
 // ----------------------------------------------------------------------------
 function ExitTracking() {
+  const toast = useToast();
+  const [intervened, setIntervened] = React.useState<Set<string>>(new Set());
+
+  const intervene = (a: (typeof AT_RISK)[number]) => {
+    setIntervened((prev) => new Set(prev).add(a.id));
+    toast({
+      title: `Intervention opened for ${a.athleteName}`,
+      description: `${a.academyName} · district welfare officer notified for a home visit within 48 h`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI tiles */}
@@ -279,9 +291,20 @@ function ExitTracking() {
                     />
                   </TableCell>
                   <TableCell className="pr-5 text-right">
-                    <Button variant="primary" size="sm">
-                      Intervene
-                    </Button>
+                    {intervened.has(a.id) ? (
+                      <Button variant="subtle" size="sm" disabled>
+                        <Check className="h-3.5 w-3.5" />
+                        Intervention open
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => intervene(a)}
+                      >
+                        Intervene
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               );

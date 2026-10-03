@@ -28,7 +28,11 @@ import {
   COMPLIANT_COUNT,
   STATE_COMPLIANCE_SCORE,
 } from "@/lib/mock/academies";
-import { OPEN_ALERTS_COUNT, unresolvedAlerts } from "@/lib/mock/alerts";
+import {
+  CRITICAL_OPEN_COUNT,
+  OPEN_ALERTS_COUNT,
+  unresolvedAlerts,
+} from "@/lib/mock/alerts";
 import { FUNDING_ROWS } from "@/lib/mock/finance";
 import type { FundingRow } from "@/lib/types";
 
@@ -86,12 +90,12 @@ export default function Home() {
           hint="FY 2025–26"
         />
         <StatCard
-          label="Open Fraud Alerts"
+          label="Open Alerts"
           value={String(OPEN_ALERTS_COUNT)}
           icon={ShieldAlert}
           tint="red"
           accent
-          hint="4 critical · needs review"
+          hint={`${CRITICAL_OPEN_COUNT} critical · needs review`}
         />
         <StatCard
           label="SLA Breaches"
